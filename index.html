@@ -1,0 +1,941 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="bingbot" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="referrer" content="no-referrer">
+<title>Spin Spinner</title>
+<style>
+  :root {
+    --bg: #fdf6ec;
+    --panel: #ffffff;
+    --ink: #2b2140;
+    --muted: #7a7090;
+    --accent: #ff5c8a;
+    --accent-dark: #e03e6e;
+    --line: #eadfce;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Trebuchet MS", "Avenir Next", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header {
+    text-align: center;
+    padding: 18px 16px 4px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    letter-spacing: 0.02em;
+  }
+  header h1 span:nth-child(1) { color: #ff5c8a; }
+  header h1 span:nth-child(2) { color: #3aa0ff; }
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+    padding: 16px 24px 32px;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; padding: 12px 16px 24px; }
+  }
+
+  .wheel-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  .wheel-wrap {
+    position: relative;
+    width: min(100%, 560px);
+    aspect-ratio: 1;
+  }
+  #wheel {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: pointer;
+    filter: drop-shadow(0 10px 18px rgba(43, 33, 64, 0.25));
+  }
+  .pointer {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    width: 44px;
+    height: 54px;
+    transform: translateX(-50%);
+    transform-origin: 50% 20%;
+    pointer-events: none;
+    filter: drop-shadow(0 3px 3px rgba(0,0,0,0.3));
+    transition: transform 0.08s ease-out;
+  }
+  .pointer.flick { transform: translateX(-50%) rotate(-18deg); transition: none; }
+
+  .spin-btn {
+    font: inherit;
+    font-size: 1.4rem;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 999px;
+    padding: 14px 56px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 var(--accent-dark);
+    transition: transform 0.08s, box-shadow 0.08s, opacity 0.2s;
+  }
+  .spin-btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .spin-btn:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 1px 0 var(--accent-dark); }
+  .spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .panel {
+    background: var(--panel);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 20px rgba(43, 33, 64, 0.08);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .panel h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .panel h2 small { color: var(--muted); font-weight: normal; font-size: 0.85rem; }
+  .add-row { display: flex; gap: 8px; }
+  .add-row input {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    font-size: 1rem;
+    padding: 10px 12px;
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    outline: none;
+  }
+  .add-row input:focus { border-color: #3aa0ff; }
+  .btn {
+    font: inherit;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    background: #3aa0ff;
+    color: #fff;
+    font-weight: bold;
+  }
+  .btn:hover { filter: brightness(1.05); }
+  .btn.secondary { background: #f1ebf8; color: var(--ink); font-weight: normal; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hint { margin: 0; font-size: 0.8rem; color: var(--muted); }
+
+  #entries {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 46vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #entries li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 8px 8px 10px;
+    border-radius: 10px;
+    background: #faf7fd;
+    animation: pop-in 0.25s ease-out;
+  }
+  #entries .swatch {
+    position: relative;
+    width: 22px; height: 22px; border-radius: 50%; flex: none;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(43, 33, 64, 0.3);
+    cursor: pointer;
+    overflow: hidden;
+  }
+  #entries .swatch:hover { transform: scale(1.12); }
+  #entries .swatch input {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer; border: none; padding: 0;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: #f1ebf8;
+    padding: 4px;
+    border-radius: 12px;
+  }
+  .tab {
+    flex: 1;
+    font: inherit;
+    font-size: 0.9rem;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    padding: 8px 6px;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .tab.active { background: #fff; color: var(--ink); font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .tab-panel { display: flex; flex-direction: column; gap: 12px; }
+  .tab-panel[hidden] { display: none; }
+
+  #importText {
+    font: inherit;
+    font-size: 1rem;
+    padding: 10px 12px;
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    resize: vertical;
+    outline: none;
+  }
+  #importText:focus { border-color: #3aa0ff; }
+
+  .themes { display: flex; flex-direction: column; gap: 8px; }
+  .theme {
+    display: flex; align-items: center; gap: 10px;
+    font: inherit; text-align: left;
+    padding: 10px; border-radius: 10px;
+    border: 2px solid var(--line); background: #fff; cursor: pointer;
+  }
+  .theme.active { border-color: #3aa0ff; background: #f3f9ff; }
+  .theme .name { flex: 1; }
+  .theme .dots { display: flex; }
+  .theme .dots span {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid #fff; margin-left: -5px;
+    box-shadow: 0 0 0 1px rgba(43, 33, 64, 0.3);
+  }
+  #entries .name { flex: 1; overflow-wrap: anywhere; }
+  #entries .remove {
+    border: none; background: transparent; color: var(--muted);
+    font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+  }
+  #entries .remove:hover { background: #f1e3ea; color: var(--accent-dark); }
+  .empty { color: var(--muted); font-style: italic; text-align: center; padding: 12px 0; }
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tools .btn { flex: 1; }
+  @keyframes pop-in {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(43, 33, 64, 0.55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    z-index: 10;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: #fff;
+    border-radius: 24px;
+    padding: 28px 28px 22px;
+    width: min(100%, 460px);
+    text-align: center;
+    transform: scale(0.7);
+    transition: transform 0.35s cubic-bezier(0.2, 1.6, 0.4, 1);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .modal-backdrop.open .modal { transform: scale(1); }
+  .modal .label { color: var(--muted); font-size: 1rem; margin: 0 0 8px; }
+  .modal .winner {
+    font-size: clamp(2rem, 7vw, 3.2rem);
+    font-weight: bold;
+    margin: 0 0 22px;
+    padding: 18px 16px;
+    border-radius: 16px;
+    border: 3px solid rgba(43, 33, 64, 0.25);
+    overflow-wrap: anywhere;
+    line-height: 1.1;
+    color: #000;
+    text-shadow:
+      -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff, 2px 2px 0 #fff,
+      0 -2px 0 #fff, 0 2px 0 #fff, -2px 0 0 #fff, 2px 0 0 #fff;
+    letter-spacing: 0.02em;
+  }
+  .modal .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .modal .actions .btn { padding: 12px 20px; font-size: 1rem; }
+
+  #confetti {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 20;
+  }
+  .sound-toggle {
+    position: fixed; top: 14px; right: 14px;
+    border: none; background: #fff; border-radius: 999px;
+    width: 44px; height: 44px; font-size: 1.3rem; cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+</style>
+</head>
+<body>
+  <button class="sound-toggle" id="soundToggle" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+
+  <header>
+    <h1><span>Spin</span> <span>Spinner</span></h1>
+  </header>
+
+  <main>
+    <section class="wheel-area">
+      <div class="wheel-wrap">
+        <canvas id="wheel" aria-label="Spinner wheel"></canvas>
+        <svg class="pointer" id="pointer" viewBox="0 0 44 54" aria-hidden="true">
+          <path d="M22 52 L4 14 A18 18 0 1 1 40 14 Z" fill="#2b2140"/>
+          <circle cx="22" cy="18" r="7" fill="#fff"/>
+        </svg>
+      </div>
+      <button class="spin-btn" id="spinBtn">SPIN!</button>
+    </section>
+
+    <aside class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab active" role="tab" type="button" data-tab="choicesTab" aria-selected="true">Choices</button>
+        <button class="tab" role="tab" type="button" data-tab="colorsTab" aria-selected="false">Colors</button>
+        <button class="tab" role="tab" type="button" data-tab="importTab" aria-selected="false">Import</button>
+      </div>
+
+      <div class="tab-panel" id="choicesTab" role="tabpanel">
+        <h2>Choices <small id="count"></small></h2>
+        <form class="add-row" id="addForm" autocomplete="off">
+          <input id="entryInput" type="text" maxlength="40" placeholder="Type a choice…" aria-label="New choice">
+          <button class="btn" type="submit">Add</button>
+        </form>
+        <p class="hint">Press Enter to add. Click a color dot to change that slice's color.</p>
+        <ul id="entries"></ul>
+        <div class="tools">
+          <button class="btn secondary" id="shuffleBtn" type="button">🔀 Shuffle</button>
+          <button class="btn secondary" id="clearBtn" type="button">🗑 Clear all</button>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="importTab" role="tabpanel" hidden>
+        <h2>Import a list</h2>
+        <p class="hint">Separate choices with commas (or put each on its own line).<br>
+          Ex: <em>apple, banana, carrot, …</em></p>
+        <textarea id="importText" rows="8" placeholder="apple, banana, carrot"></textarea>
+        <p class="hint" id="importPreview"></p>
+        <div class="tools">
+          <button class="btn" id="importAddBtn" type="button">➕ Add to wheel</button>
+          <button class="btn secondary" id="importReplaceBtn" type="button">♻️ Replace wheel</button>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="colorsTab" role="tabpanel" hidden>
+        <h2>Color theme</h2>
+        <p class="hint">Pick a theme for the whole wheel. Slices you colored by hand keep their color.</p>
+        <div id="themes" class="themes"></div>
+        <button class="btn secondary" id="resetColorsBtn" type="button">↺ Reset hand-picked colors</button>
+      </div>
+    </aside>
+  </main>
+
+  <div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="winnerText">
+    <div class="modal">
+      <p class="label">🎉 The wheel picked… 🎉</p>
+      <p class="winner" id="winnerText"></p>
+      <div class="actions">
+        <button class="btn" id="closeBtn" type="button">Yay!</button>
+        <button class="btn secondary" id="removeWinnerBtn" type="button">Remove from wheel</button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="confetti"></canvas>
+
+<script>
+(() => {
+  const THEMES = {
+    rainbow: { name: "Rainbow", colors: ["#ff5c8a", "#ffb02e", "#ffe14d", "#4cd17a", "#3aa0ff", "#a58bff", "#ff7a45", "#2ec4c4"] },
+    candy: { name: "Candy", colors: ["#ff6fb5", "#ffa8d6", "#d48bfb", "#a597ff", "#ff8f70", "#ffc857", "#5ad1e8", "#f25f9b"] },
+    ocean: { name: "Ocean", colors: ["#4fb3d9", "#7fd1e8", "#3dd6d0", "#62b6cb", "#5b9bd5", "#2ec4b6", "#8ab6f0", "#48bfe3"] },
+    jungle: { name: "Jungle", colors: ["#52b788", "#95d5b2", "#a7c957", "#e9c46a", "#f4a261", "#74c69d", "#d4a373", "#b5e48c"] },
+    sunset: { name: "Sunset", colors: ["#f97068", "#f3722c", "#f8961e", "#f9c74f", "#f9844a", "#f28ba0", "#ff9f80", "#ffb703"] },
+    pastel: { name: "Pastel", colors: ["#ffadad", "#ffd6a5", "#fdf0a0", "#b9f0b9", "#b5e2fa", "#c3c7ff", "#e2c9ee", "#ffc6ff"] },
+  };
+  const LABEL_COLOR = "#000";
+  const LABEL_OUTLINE = "#fff";
+  const IDLE_SPEED = 0.12;
+  const SPIN_MS = 5500;
+  const STORAGE_KEY = "spinspinner.entries";
+  const THEME_KEY = "spinspinner.theme";
+  const TAU = Math.PI * 2;
+  const POINTER_ANGLE = -Math.PI / 2;
+
+  const canvas = document.getElementById("wheel");
+  const ctx = canvas.getContext("2d");
+  const pointerEl = document.getElementById("pointer");
+  const spinBtn = document.getElementById("spinBtn");
+  const listEl = document.getElementById("entries");
+  const countEl = document.getElementById("count");
+  const form = document.getElementById("addForm");
+  const input = document.getElementById("entryInput");
+  const modal = document.getElementById("modal");
+  const winnerText = document.getElementById("winnerText");
+  const soundToggle = document.getElementById("soundToggle");
+
+  let entries = loadEntries();
+  let themeKey = loadTheme();
+  let rotation = 0;
+  let spinning = false;
+  let modalOpen = false;
+  let lastWinnerIndex = -1;
+  let soundOn = true;
+
+  function loadEntries() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (Array.isArray(saved)) {
+        // Older saves stored plain strings.
+        return saved
+          .map(e => typeof e === "string" ? { text: e, color: null } : e)
+          .filter(e => e && typeof e.text === "string")
+          .map(e => ({ text: e.text, color: typeof e.color === "string" ? e.color : null }));
+      }
+    } catch {}
+    return ["Pizza", "Tacos", "Movie night", "Board games", "Ice cream", "Dance party"]
+      .map(text => ({ text, color: null }));
+  }
+  function saveEntries() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); } catch {}
+  }
+  function loadTheme() {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved in THEMES) return saved;
+    } catch {}
+    return "rainbow";
+  }
+
+  const palette = () => THEMES[themeKey].colors;
+
+  // When the count is one more than a multiple of the palette, the last slice
+  // would match the first; nudge it to a different color.
+  function colorFor(i) {
+    if (entries[i].color) return entries[i].color;
+    const colors = palette();
+    const n = entries.length;
+    if (n > 1 && i === n - 1 && i % colors.length === 0) return colors[2];
+    return colors[i % colors.length];
+  }
+
+
+  // ---------- Wheel drawing ----------
+  let size = 0;
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    size = rect.width;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function draw() {
+    const c = size / 2;
+    const r = c - 8;
+    ctx.clearRect(0, 0, size, size);
+
+    ctx.beginPath();
+    ctx.arc(c, c, r + 6, 0, TAU);
+    ctx.fillStyle = "#2b2140";
+    ctx.fill();
+
+    const n = entries.length;
+    if (n === 0) {
+      ctx.beginPath();
+      ctx.arc(c, c, r, 0, TAU);
+      ctx.fillStyle = "#e9e2f2";
+      ctx.fill();
+      ctx.fillStyle = "#7a7090";
+      ctx.font = `bold ${Math.max(14, size / 22)}px "Trebuchet MS", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Add some choices!", c, c + r / 2.2);
+    } else {
+      const arc = TAU / n;
+      for (let i = 0; i < n; i++) {
+        const start = rotation + i * arc;
+        ctx.beginPath();
+        ctx.moveTo(c, c);
+        ctx.arc(c, c, r, start, start + arc);
+        ctx.closePath();
+        const color = colorFor(i);
+        ctx.fillStyle = color;
+        ctx.fill();
+        if (n > 1) {
+          ctx.strokeStyle = "rgba(43,33,64,0.35)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        drawLabel(entries[i].text, c, r, start + arc / 2, arc, n);
+      }
+    }
+
+    // Pegs around the rim
+    const pegs = Math.max(n, 12);
+    for (let i = 0; i < pegs; i++) {
+      const a = rotation + (i / pegs) * TAU;
+      ctx.beginPath();
+      ctx.arc(c + Math.cos(a) * (r + 1), c + Math.sin(a) * (r + 1), Math.max(2.5, size / 140), 0, TAU);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+    }
+
+    // Hub
+    ctx.beginPath();
+    ctx.arc(c, c, r * 0.12, 0, TAU);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "#2b2140";
+    ctx.stroke();
+  }
+
+  function drawLabel(text, c, r, mid, arc, n) {
+    ctx.save();
+    ctx.translate(c, c);
+    ctx.rotate(mid);
+    const maxW = r * 0.78;
+    const sliceH = n === 1 ? r : 2 * Math.sin(Math.min(arc, Math.PI) / 2) * r * 0.75;
+    let fontSize = Math.min(size / 16, sliceH * 0.55, 34);
+    fontSize = Math.max(fontSize, 9);
+    ctx.font = `bold ${fontSize}px "Trebuchet MS", sans-serif`;
+    let label = text;
+    if (ctx.measureText(label).width > maxW) {
+      while (label.length > 1 && ctx.measureText(label + "…").width > maxW) label = label.slice(0, -1);
+      label += "…";
+    }
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = Math.max(3, fontSize / 4);
+    ctx.strokeStyle = LABEL_OUTLINE;
+    ctx.lineJoin = "round";
+    ctx.strokeText(label, r - 18, 0);
+    ctx.fillStyle = LABEL_COLOR;
+    ctx.fillText(label, r - 18, 0);
+    ctx.restore();
+  }
+
+  function indexAtPointer() {
+    const n = entries.length;
+    const rel = ((POINTER_ANGLE - rotation) % TAU + TAU) % TAU;
+    return Math.floor(rel / (TAU / n)) % n;
+  }
+
+  // ---------- Animation loop ----------
+  let lastT = performance.now();
+  function loop(t) {
+    const dt = Math.min(0.05, (t - lastT) / 1000);
+    lastT = t;
+    if (!spinning && !modalOpen) {
+      rotation = (rotation + IDLE_SPEED * dt) % TAU;
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Spin ----------
+  const easeOut = t => 1 - Math.pow(1 - t, 4);
+
+  function spin() {
+    if (spinning || entries.length < 2) return;
+    ensureAudio();
+    spinning = true;
+    updateControls();
+
+    const start = rotation;
+    const extra = TAU * (6 + Math.random() * 3) + Math.random() * TAU;
+    const end = start + extra;
+    const t0 = performance.now();
+    let lastIndex = indexAtPointer();
+
+    function frame(now) {
+      const p = Math.min(1, (now - t0) / SPIN_MS);
+      rotation = start + extra * easeOut(p);
+      draw();
+      const idx = indexAtPointer();
+      if (idx !== lastIndex) {
+        lastIndex = idx;
+        tick();
+      }
+      if (p < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        rotation = end % TAU;
+        spinning = false;
+        showWinner(indexAtPointer());
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function flickPointer() {
+    pointerEl.classList.add("flick");
+    requestAnimationFrame(() => requestAnimationFrame(() => pointerEl.classList.remove("flick")));
+  }
+
+  // ---------- Sound (Web Audio, no files needed) ----------
+  let audio = null;
+  let lastTickAt = 0;
+  function ensureAudio() {
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { audio = null; }
+    }
+    if (audio && audio.state === "suspended") audio.resume();
+  }
+
+  function tick() {
+    flickPointer();
+    if (!soundOn || !audio) return;
+    const now = audio.currentTime;
+    if (now - lastTickAt < 0.03) return;
+    lastTickAt = now;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(1400 + Math.random() * 200, now);
+    osc.frequency.exponentialRampToValueAtTime(600, now + 0.04);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(now);
+    osc.stop(now + 0.06);
+  }
+
+  function fanfare() {
+    if (!soundOn || !audio) return;
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    const now = audio.currentTime;
+    notes.forEach((f, i) => {
+      const t = now + i * 0.11;
+      const dur = i === notes.length - 1 ? 0.6 : 0.18;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(t);
+      osc.stop(t + dur + 0.05);
+    });
+  }
+
+  soundToggle.addEventListener("click", () => {
+    soundOn = !soundOn;
+    soundToggle.textContent = soundOn ? "🔊" : "🔇";
+  });
+
+  // ---------- Winner modal ----------
+  function showWinner(i) {
+    lastWinnerIndex = i;
+    winnerText.textContent = entries[i].text;
+    winnerText.style.background = colorFor(i);
+    modalOpen = true;
+    modal.classList.add("open");
+    fanfare();
+    launchConfetti();
+    document.getElementById("closeBtn").focus();
+  }
+
+  function closeModal() {
+    modal.classList.remove("open");
+    modalOpen = false;
+    updateControls();
+  }
+
+  document.getElementById("closeBtn").addEventListener("click", closeModal);
+  document.getElementById("removeWinnerBtn").addEventListener("click", () => {
+    if (lastWinnerIndex >= 0) removeEntry(lastWinnerIndex);
+    closeModal();
+  });
+  modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && modalOpen) closeModal(); });
+
+  // ---------- Confetti ----------
+  const confettiCanvas = document.getElementById("confetti");
+  const cctx = confettiCanvas.getContext("2d");
+  let pieces = [];
+  let confettiRunning = false;
+
+  function launchConfetti() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = window.innerWidth, h = window.innerHeight;
+    confettiCanvas.width = w * dpr;
+    confettiCanvas.height = h * dpr;
+    cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const confettiColors = [...new Set([...palette(), ...entries.map((_, i) => colorFor(i))])];
+    for (let i = 0; i < 220; i++) {
+      const fromLeft = i % 2 === 0;
+      pieces.push({
+        x: fromLeft ? -10 : w + 10,
+        y: h * (0.55 + Math.random() * 0.3),
+        vx: (fromLeft ? 1 : -1) * (6 + Math.random() * 10),
+        vy: -(12 + Math.random() * 12),
+        w: 6 + Math.random() * 6,
+        h: 10 + Math.random() * 8,
+        rot: Math.random() * TAU,
+        vr: (Math.random() - 0.5) * 0.4,
+        color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+        life: 0,
+      });
+    }
+    if (!confettiRunning) {
+      confettiRunning = true;
+      requestAnimationFrame(confettiFrame);
+    }
+  }
+
+  function confettiFrame() {
+    const w = window.innerWidth, h = window.innerHeight;
+    cctx.clearRect(0, 0, w, h);
+    for (const p of pieces) {
+      p.vy += 0.35;
+      p.vx *= 0.985;
+      p.vy *= 0.985;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      p.life++;
+      cctx.save();
+      cctx.translate(p.x, p.y);
+      cctx.rotate(p.rot);
+      cctx.scale(1, Math.cos(p.life * 0.15));
+      cctx.fillStyle = p.color;
+      cctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      cctx.restore();
+    }
+    pieces = pieces.filter(p => p.y < h + 40);
+    if (pieces.length) {
+      requestAnimationFrame(confettiFrame);
+    } else {
+      confettiRunning = false;
+      cctx.clearRect(0, 0, w, h);
+    }
+  }
+
+  // ---------- Entries list ----------
+  function renderList() {
+    listEl.innerHTML = "";
+    if (entries.length === 0) {
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "No choices yet — add some above!";
+      listEl.appendChild(li);
+    }
+    entries.forEach((entry, i) => {
+      const li = document.createElement("li");
+      const sw = document.createElement("label");
+      sw.className = "swatch";
+      sw.title = "Change color";
+      sw.style.background = colorFor(i);
+      const picker = document.createElement("input");
+      picker.type = "color";
+      picker.value = colorFor(i);
+      picker.setAttribute("aria-label", `Color for ${entry.text}`);
+      picker.addEventListener("input", () => {
+        entry.color = picker.value;
+        sw.style.background = picker.value;
+        draw();
+      });
+      picker.addEventListener("change", () => {
+        entry.color = picker.value;
+        saveEntries();
+      });
+      sw.appendChild(picker);
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = entry.text;
+      const rm = document.createElement("button");
+      rm.className = "remove";
+      rm.type = "button";
+      rm.title = "Remove";
+      rm.setAttribute("aria-label", `Remove ${entry.text}`);
+      rm.textContent = "×";
+      rm.addEventListener("click", () => removeEntry(i));
+      li.append(sw, name, rm);
+      listEl.appendChild(li);
+    });
+    countEl.textContent = entries.length ? `${entries.length} on the wheel` : "";
+    updateControls();
+  }
+
+  function updateControls() {
+    spinBtn.disabled = spinning || entries.length < 2;
+    spinBtn.textContent = spinning ? "Spinning…" : entries.length < 2 ? "Add 2+ choices" : "SPIN!";
+    document.querySelectorAll("#entries .remove, #entries input, #shuffleBtn, #clearBtn, #importAddBtn, #importReplaceBtn")
+      .forEach(b => b.disabled = spinning);
+  }
+
+  function changed() {
+    saveEntries();
+    renderList();
+    draw();
+  }
+
+  const cleanTexts = texts => texts.map(t => t.trim()).filter(Boolean).map(t => t.slice(0, 40));
+
+  function addEntries(texts) {
+    if (spinning) return 0;
+    const clean = cleanTexts(texts);
+    if (!clean.length) return 0;
+    entries.push(...clean.map(text => ({ text, color: null })));
+    changed();
+    listEl.scrollTop = listEl.scrollHeight;
+    return clean.length;
+  }
+
+  function removeEntry(i) {
+    if (spinning) return;
+    entries.splice(i, 1);
+    changed();
+  }
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    addEntries([input.value]);
+    input.value = "";
+    input.focus();
+  });
+
+  input.addEventListener("paste", e => {
+    const text = e.clipboardData.getData("text");
+    if (/[\n,]/.test(text)) {
+      e.preventDefault();
+      addEntries(text.split(/[\n,]/));
+    }
+  });
+
+  document.getElementById("shuffleBtn").addEventListener("click", () => {
+    for (let i = entries.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [entries[i], entries[j]] = [entries[j], entries[i]];
+    }
+    changed();
+  });
+
+  document.getElementById("clearBtn").addEventListener("click", () => {
+    if (entries.length && confirm("Remove all choices from the wheel?")) {
+      entries = [];
+      changed();
+    }
+  });
+
+  // ---------- Tabs ----------
+  const tabs = document.querySelectorAll(".tab");
+  function showTab(id) {
+    tabs.forEach(t => {
+      const on = t.dataset.tab === id;
+      t.classList.toggle("active", on);
+      t.setAttribute("aria-selected", on);
+      document.getElementById(t.dataset.tab).hidden = !on;
+    });
+  }
+  tabs.forEach(t => t.addEventListener("click", () => showTab(t.dataset.tab)));
+
+  // ---------- Import ----------
+  const importText = document.getElementById("importText");
+  const importPreview = document.getElementById("importPreview");
+  const splitImport = () => cleanTexts(importText.value.split(/[\n,]/));
+
+  importText.addEventListener("input", () => {
+    const n = splitImport().length;
+    importPreview.textContent = n ? `${n} choice${n === 1 ? "" : "s"} ready to add.` : "";
+  });
+
+  function finishImport() {
+    importText.value = "";
+    importPreview.textContent = "";
+    showTab("choicesTab");
+  }
+  document.getElementById("importAddBtn").addEventListener("click", () => {
+    if (addEntries(splitImport())) finishImport();
+  });
+  document.getElementById("importReplaceBtn").addEventListener("click", () => {
+    const items = splitImport();
+    if (!items.length || spinning) return;
+    if (entries.length && !confirm(`Replace the ${entries.length} current choices with ${items.length} new ones?`)) return;
+    entries = [];
+    addEntries(items);
+    finishImport();
+  });
+
+  // ---------- Color themes ----------
+  const themesEl = document.getElementById("themes");
+  function renderThemes() {
+    themesEl.innerHTML = "";
+    for (const [key, theme] of Object.entries(THEMES)) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "theme" + (key === themeKey ? " active" : "");
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = theme.name;
+      const dots = document.createElement("span");
+      dots.className = "dots";
+      theme.colors.forEach(c => {
+        const d = document.createElement("span");
+        d.style.background = c;
+        dots.appendChild(d);
+      });
+      btn.append(name, dots);
+      btn.addEventListener("click", () => {
+        themeKey = key;
+        try { localStorage.setItem(THEME_KEY, key); } catch {}
+        renderThemes();
+        renderList();
+        draw();
+      });
+      themesEl.appendChild(btn);
+    }
+  }
+  document.getElementById("resetColorsBtn").addEventListener("click", () => {
+    entries.forEach(e => e.color = null);
+    changed();
+  });
+
+  spinBtn.addEventListener("click", spin);
+  canvas.addEventListener("click", spin);
+
+  window.addEventListener("resize", resize);
+  renderThemes();
+  renderList();
+  resize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
